@@ -1,0 +1,12 @@
+#environment variables for IDE
+_config.yml
+.vs/
+*.vsproj
+*.sln
+
+#built executables and object files
+*.exe
+*.o
+a.out
+.vscode/settings.json
+.vscode/launch.json
