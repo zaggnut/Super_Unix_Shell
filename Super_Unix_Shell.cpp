@@ -20,57 +20,64 @@ Author Of Modification: Michel Lingo
 #include <cstdio>
 #include <cstring> //strdup, strtok
 #include <list>
+#include <vector>
 #include <utility>
 
-bool shellExec(std::list<std::string> &command);
-void checkRedirects(std::list<std::string> &command);
-std::list<std::string> splitArgs(std::string input);
-bool checkAwait(std::list<std::string> &args);
+using namespace std;
+
+bool shellExec(list<string> &command);
+void checkRedirects(list<string> &command);
+list<string> splitArgs(string input);
+bool checkAwait(list<string> &args);
+void printHistory(vector<string> &history);
+void spinProc(list<string> &args);
+pair<string, bool> historyRequest(string request, vector<string> &history);
 
 int main()
 {
+    vector<string> history;
     for (;;)
     {
-        std::cout << "TheFakeShell-$ "; //because it is not a real shell
-        std::string input;              //string to hold the next line
-        getline(std::cin, input);
+        cout << "TheFakeShell-> "; //because it is not a real shell
+        string input;              //string to hold the next line
+        getline(cin, input);
         auto args = splitArgs(input); //split into "words" by ' ' or '\t'
         if (args.size() > 0)
         {
+            if (args.begin()->operator[](0) == '!')
+            {
+                if (history.empty())
+                {
+                    cout << "There is nothing in the history!" << endl;
+                }
+                auto res = historyRequest(*(args.begin()), history);
+                if (res.second == false) //failed, do nothing
+                {
+                    continue;
+                }
+                cout << res.first << endl; //first is the history item
+                input = res.first;
+                args = splitArgs(input);
+            }
+            history.push_back(input);
             if (*(args.begin()) == "exit") //exit if first arg is exit
             {
                 break;
             }
-            bool await = checkAwait(args);
-            //checkRedirects(args);
-            auto proc = fork();
-            //sleep(10);
-            if (proc == -1) //failure
+            if (*(args.begin()) == "history")
             {
-                exit(EXIT_FAILURE);
+                printHistory(history);
+                continue;
             }
-            else if (proc == 0) //child process
-            {
-                checkRedirects(args);
-                shellExec(args);
-                return 0;
-            }
-            else //parent process
-            {
-                if (await)
-                {
-                    int result;
-                    wait(&result);
-                }
-            }
+            spinProc(args);
         }
     }
     return 0;
 }
 
-bool shellExec(std::list<std::string> &command)
+bool shellExec(list<string> &command)
 {
-    char **argList = new char *[command.size() - 1];
+    char **argList = new char *[command.size() + 1];
     int i = 0;
     for (auto it = command.begin(); it != command.end(); it++)
     {
@@ -81,14 +88,15 @@ bool shellExec(std::list<std::string> &command)
 #endif
         i++;
     }
+    argList[i] = NULL; //last arg is null
     int res = execvp(command.begin()->c_str(), argList);
-    exit(res);
+    _exit(res); //error, exit without flushing buffers
 }
 
-std::list<std::string> splitArgs(std::string input)
+list<string> splitArgs(string input)
 {
 
-    std::list<std::string> output;
+    list<string> output;
     char *arg;
 #ifdef _MSC_VER //if being built with Visual Studio
     char *buffer = _strdup(input.c_str());
@@ -115,7 +123,7 @@ std::list<std::string> splitArgs(std::string input)
     return output;
 }
 
-bool checkAwait(std::list<std::string> &args)
+bool checkAwait(list<string> &args)
 {
     bool toAwait = true;
     auto it = args.begin();
@@ -132,7 +140,7 @@ bool checkAwait(std::list<std::string> &args)
     return toAwait;
 }
 
-void checkRedirects(std::list<std::string> &command)
+void checkRedirects(list<string> &command)
 {
     auto it = command.begin();
     it++; //start with the second since the first must be the command
@@ -142,30 +150,92 @@ void checkRedirects(std::list<std::string> &command)
         {
             auto firstErase = it;
             it++;
-            int outFile = open(it->c_str(), O_WRONLY | O_CREAT);
+            //int outFile = open(it->c_str(), O_WRONLY | O_CREAT | O_TRUNC);
+            FILE *outF = fopen(it->c_str(), "w");
+            int outFile = fileno(outF);
             if (outFile == -1)
             {
                 perror(strerror(errno));
             }
+            it++;
             command.erase(firstErase, it);
-            dup2(STDOUT_FILENO, outFile);
-            close(outFile);
+            dup2(outFile, STDOUT_FILENO);
+            fclose(outF);
             it = command.begin(); //start over, avoids nullptr exception
+            continue;
         }
 
         if (*it == "<")
         {
             auto firstErase = it;
             it++;
-            int inFile = open(it->c_str(), O_RDONLY);
+            FILE *inF = fopen(it->c_str(), "r");
+            int inFile = fileno(inF);
+            //int inFile = open(it->c_str(), O_RDONLY);
             if (inFile == -1)
             {
                 perror(strerror(errno));
             }
+            it++;
             command.erase(firstErase, it);
-            dup2(STDIN_FILENO, inFile);
-            close(inFile);
+            dup2(inFile, STDIN_FILENO);
+            fclose(inF);
             it = command.begin(); //start over, avoids nullptr exception
         }
     }
+}
+
+void spinProc(list<string> &args)
+{
+    bool await = checkAwait(args);
+    auto proc = fork();
+    if (proc == -1) //failure
+    {
+        exit(EXIT_FAILURE);
+    }
+    else if (proc == 0) //child process
+    {
+        checkRedirects(args);
+        shellExec(args);
+    }
+    else //parent process
+    {
+        if (await)
+        {
+            int result;
+            wait(&result);
+        }
+    }
+}
+
+void printHistory(vector<string> &history)
+{
+    if (history.empty()) //empty history
+    {
+        cout << "The history is empty" << endl;
+        return;
+    }
+    unsigned j = history.size();
+    for (unsigned i = 0; i < history.size(); i++)
+    {
+        cout << j << " " << history[i] << endl;
+        j--;
+    }
+}
+
+pair<string, bool> historyRequest(string request, vector<string> &history)
+{
+    if (request == "!!") //return last command
+    {
+        return make_pair(history[history.size() - 1], true);
+    }
+    long num = 0;
+    num = strtol(request.substr(1).c_str(), NULL, 0);
+    if (num <= 0 || num > history.size())
+    {
+        cout << "that is not a valid position in the history" << endl;
+        return make_pair("", false);
+    }
+    //else valid history
+    return make_pair(history[history.size() - num], true);
 }
