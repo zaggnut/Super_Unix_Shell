@@ -35,7 +35,7 @@ int main()
         auto args = splitArgs(input); //split into "words" by ' ' or '\t'
         if (args.size() > 0)
         {
-            if (*(args.begin()) == "exit")
+            if (*(args.begin()) == "exit") //exit if first arg is exit
             {
                 break;
             }
@@ -75,7 +75,8 @@ bool shellExec(std::list<std::string> &command)
 #endif
         i++;
     }
-    execvp(command.begin()->c_str(), argList);
+    int res = execvp(command.begin()->c_str(), argList);
+    exit(res);
 }
 
 std::list<std::string> splitArgs(std::string input)
@@ -111,7 +112,9 @@ std::list<std::string> splitArgs(std::string input)
 bool checkAwait(std::list<std::string> &args)
 {
     bool toAwait = true;
-    for (auto it = args.begin(); it != args.end(); it++)
+    auto it = args.begin();
+    it++; //start with the second since the first must be the command
+    for (; it != args.end(); it++)
     {
         if (*it == "&")
         {
@@ -124,15 +127,27 @@ bool checkAwait(std::list<std::string> &args)
 
 void checkRedirects(std::list<std::string> &command)
 {
-    for (auto it = command.begin(); it != command.end(); it++)
+    auto it = command.begin();
+    it++; //start with the second since the first must be the command
+    for (; it != command.end(); it++)
     {
         if (*it == ">")
         {
             command.erase(it);
             it++;
-            int fp = open(it->c_str(), O_WRONLY);
+            int outFile = open(it->c_str(), O_WRONLY);
             command.erase(it);
-            dup2(STDOUT_FILENO, fp);
+            dup2(STDOUT_FILENO, outFile);
+            continue;
+        }
+        if(*it == "<")
+        {
+            command.erase(it);
+            it++;
+            int inFile = open(it->c_str(), O_RDONLY);
+            command.erase(it);
+            dup2(STDIN_FILENO, inFile);
         }
     }
+
 }
