@@ -14,11 +14,13 @@ Author Of Modification: Michel Lingo
 #include <sys/wait.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <errno.h>
 #include <string>
 #include <iostream>
 #include <cstdio>
 #include <cstring> //strdup, strtok
 #include <list>
+#include <utility>
 
 bool shellExec(std::list<std::string> &command);
 void checkRedirects(std::list<std::string> &command);
@@ -31,7 +33,7 @@ int main()
     {
         std::cout << "TheFakeShell-$ "; //because it is not a real shell
         std::string input;              //string to hold the next line
-        std::cin >> input;
+        getline(std::cin, input);
         auto args = splitArgs(input); //split into "words" by ' ' or '\t'
         if (args.size() > 0)
         {
@@ -40,14 +42,18 @@ int main()
                 break;
             }
             bool await = checkAwait(args);
+            //checkRedirects(args);
             auto proc = fork();
+            //sleep(10);
             if (proc == -1) //failure
             {
                 exit(EXIT_FAILURE);
             }
-            else if (proc == 0)
+            else if (proc == 0) //child process
             {
+                checkRedirects(args);
                 shellExec(args);
+                return 0;
             }
             else //parent process
             {
@@ -120,6 +126,7 @@ bool checkAwait(std::list<std::string> &args)
         {
             toAwait = false;
             args.erase(it);
+            it--; //go back one, avoid nullptr exception
         }
     }
     return toAwait;
@@ -133,21 +140,32 @@ void checkRedirects(std::list<std::string> &command)
     {
         if (*it == ">")
         {
-            command.erase(it);
+            auto firstErase = it;
             it++;
-            int outFile = open(it->c_str(), O_WRONLY);
-            command.erase(it);
+            int outFile = open(it->c_str(), O_WRONLY | O_CREAT);
+            if (outFile == -1)
+            {
+                perror(strerror(errno));
+            }
+            command.erase(firstErase, it);
             dup2(STDOUT_FILENO, outFile);
-            continue;
+            close(outFile);
+            it = command.begin(); //start over, avoids nullptr exception
         }
-        if(*it == "<")
+
+        if (*it == "<")
         {
-            command.erase(it);
+            auto firstErase = it;
             it++;
             int inFile = open(it->c_str(), O_RDONLY);
-            command.erase(it);
+            if (inFile == -1)
+            {
+                perror(strerror(errno));
+            }
+            command.erase(firstErase, it);
             dup2(STDIN_FILENO, inFile);
+            close(inFile);
+            it = command.begin(); //start over, avoids nullptr exception
         }
     }
-
 }
