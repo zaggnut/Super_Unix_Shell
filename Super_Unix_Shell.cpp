@@ -9,37 +9,79 @@ Author Of Modification: Michel Lingo
 //insert amazing code here
 
 #include <unistd.h>
+#include <sys/types.h>
+#include <cstdlib>
+#include <sys/wait.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 #include <string>
 #include <iostream>
-#include <cstring>
-#include <vector>
+#include <cstdio>
+#include <cstring> //strdup, strtok
+#include <list>
 
-bool shellExec(std::string command);
-std::vector<std::string> splitArgs(std::string input);
+bool shellExec(std::list<std::string> &command);
+void checkRedirects(std::list<std::string> &command);
+std::list<std::string> splitArgs(std::string input);
+bool checkAwait(std::list<std::string> &args);
 
 int main()
 {
     for (;;)
     {
-        std::cout << "TheFakeShell-$ ";
-        std::string input;
+        std::cout << "TheFakeShell-$ "; //because it is not a real shell
+        std::string input;              //string to hold the next line
         std::cin >> input;
-        auto args = splitArgs(input);
+        auto args = splitArgs(input); //split into "words" by ' ' or '\t'
         if (args.size() > 0)
         {
-            if (args[0] == "exit")
+            if (*(args.begin()) == "exit")
             {
                 break;
+            }
+            bool await = checkAwait(args);
+            auto proc = fork();
+            if (proc == -1) //failure
+            {
+                exit(EXIT_FAILURE);
+            }
+            else if (proc == 0)
+            {
+                shellExec(args);
+            }
+            else //parent process
+            {
+                if (await)
+                {
+                    int result;
+                    wait(&result);
+                }
             }
         }
     }
     return 0;
 }
 
-std::vector<std::string> splitArgs(std::string input)
+bool shellExec(std::list<std::string> &command)
+{
+    char **argList = new char *[command.size() - 1];
+    int i = 0;
+    for (auto it = command.begin(); it != command.end(); it++)
+    {
+#ifdef _MSC_VER //strdup is prefixed with an '_' on the microsoft compiler
+        argList[i] = _strdup(it->c_str());
+#else
+        argList[i] = strdup(it->c_str());
+#endif
+        i++;
+    }
+    execvp(command.begin()->c_str(), argList);
+}
+
+std::list<std::string> splitArgs(std::string input)
 {
 
-    std::vector<std::string> output;
+    std::list<std::string> output;
     char *arg;
 #ifdef _MSC_VER //if being built with Visual Studio
     char *buffer = _strdup(input.c_str());
@@ -64,4 +106,33 @@ std::vector<std::string> splitArgs(std::string input)
     }
     free(buffer);
     return output;
+}
+
+bool checkAwait(std::list<std::string> &args)
+{
+    bool toAwait = true;
+    for (auto it = args.begin(); it != args.end(); it++)
+    {
+        if (*it == "&")
+        {
+            toAwait = false;
+            args.erase(it);
+        }
+    }
+    return toAwait;
+}
+
+void checkRedirects(std::list<std::string> &command)
+{
+    for (auto it = command.begin(); it != command.end(); it++)
+    {
+        if (*it == ">")
+        {
+            command.erase(it);
+            it++;
+            int fp = open(it->c_str(), O_WRONLY);
+            command.erase(it);
+            dup2(STDOUT_FILENO, fp);
+        }
+    }
 }
