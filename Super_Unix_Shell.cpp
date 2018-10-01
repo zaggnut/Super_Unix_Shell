@@ -36,6 +36,7 @@ pair<string, bool> historyRequest(string request, vector<string> &history);
 int main()
 {
     vector<string> history;
+    cout << "Michael Lingo and Shane Laskowski" << endl;
     for (;;)
     {
         cout << "TheFakeShell-> "; //because it is not a real shell
