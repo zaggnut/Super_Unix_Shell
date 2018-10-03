@@ -26,7 +26,7 @@ bool shellExec(list<string> &command);
 void checkRedirects(list<string> &command);
 list<string> splitArgs(string input);
 bool checkAwait(list<string> &args);
-void printHistory(vector<string> &history);
+void printHistory(vector<string> &history);//
 pair<pid_t, bool> spinProc(list<string> &args);
 pair<string, bool> historyRequest(string request, vector<string> &history);
 void checkRunningProcs(list<pid_t> &runningProcs);
@@ -45,7 +45,7 @@ int main()
 		checkRunningProcs(runningProcs);
 		if (args.size() > 0) //if user has actually typed anything into his/her command
 		{
-			if (args.begin()->operator[](0) == '!') 
+			if (args.begin()->operator[](0) == '!') //accesses the [] from the args pointed object and checks 1st index
 			{
 				if (history.empty())
 				{
@@ -70,10 +70,10 @@ int main()
 				printHistory(history); //history of user input printed
 				continue; //
 			}
-			auto status = spinProc(args);
-			if (status.second == false)
+			auto status = spinProc(args); //runs the command that user typed in, passes the pair of PID and bool result into status
+			if (status.second == false) //if spinProc returned false bool
 			{
-				runningProcs.push_back(status.first);
+				runningProcs.push_back(status.first); //adds the PID held in status within the runningProcs List
 			}
 		}
 	}
@@ -192,8 +192,8 @@ void checkRedirects(list<string> &command)
 }
 
 /*
-PURPOSE:
-PARAMETERS:
+PURPOSE: Handles the User Input
+PARAMETERS: args is a list containing all the "words" of the user command
 */
 pair<pid_t, bool> spinProc(list<string> &args)
 {
@@ -220,8 +220,8 @@ pair<pid_t, bool> spinProc(list<string> &args)
 }
 
 /*
-PURPOSE:
-PARAMETERS:
+PURPOSE: prints the history of user inputted commands.  prints the historical number of the command.
+PARAMETERS: history vector that contains all the commands typed in.  it is to be printed
 */
 void printHistory(vector<string> &history)
 {
@@ -230,7 +230,7 @@ void printHistory(vector<string> &history)
 		cout << "The history is empty" << endl;
 		return;
 	}
-	unsigned j = history.size();
+	unsigned j = history.size(); //**************can't we just replace with i + 1 within the loop ?
 	for (unsigned i = 0; i < history.size(); i++)
 	{
 		cout << j << " " << history[i] << endl;
