@@ -43,9 +43,9 @@ int main()
 		getline(cin, input);
 		auto args = splitArgs(input); //split into "words" by ' ' or '\t'
 		checkRunningProcs(runningProcs);
-		if (args.size() > 0)
+		if (args.size() > 0) //if user has actually typed anything into his/her command
 		{
-			if (args.begin()->operator[](0) == '!')
+			if (args.begin()->operator[](0) == '!') 
 			{
 				if (history.empty())
 				{
@@ -60,15 +60,15 @@ int main()
 				input = res.first;
 				args = splitArgs(input);
 			}
-			history.push_back(input);
+			history.push_back(input); //user command saved into history container
 			if (*(args.begin()) == "exit") //exit if first arg is exit
 			{
-				break;
+				break; //the infinite for loop breaks ==>  basically it means the end of the program 
 			}
-			if (*(args.begin()) == "history")
+			if (*(args.begin()) == "history") //if user types in the history command, then history is printed
 			{
-				printHistory(history);
-				continue;
+				printHistory(history); //history of user input printed
+				continue; //
 			}
 			auto status = spinProc(args);
 			if (status.second == false)
@@ -80,6 +80,10 @@ int main()
 	return 0;
 }
 
+/*
+Purpose:
+Parameters:
+*/
 bool shellExec(list<string> &command)
 {
 	char **argList = new char *[command.size() + 1];
@@ -94,24 +98,33 @@ bool shellExec(list<string> &command)
 	_exit(res); //error, exit without flushing buffers
 }
 
+
+/*
+PURPOSE:splits each word in the user input inorder to help determine what each command is.
+PARAMETERS: the string input is what the user types in.  each word needs to be seperated to be handled/identified
+*/
 list<string> splitArgs(string input)
 {
 
-	list<string> output;
+	list<string> output; //used to store all the "words"/modifiers of the user command
 	char *arg;
-	char *buffer = strdup(input.c_str());
-	arg = strtok(buffer, " \t");
-	for (;;) //go until next token is null;
+	char *buffer = strdup(input.c_str()); //places c-string equivalent of input into the heap and the c-string pointer buffer points to it
+	arg = strtok(buffer, " \t"); //the arg pointer points to the "words"/modifiers in variable buffer.  the space + tab delimits each word
+	for (;;) //go until next token, arg, is null;
 	{
-		if (arg == NULL)
+		if (arg == NULL) //no more "words"/modifiers in user input
 			break;
-		output.push_back(arg);
+		output.push_back(arg); //pushes a word into the output variable
 		arg = strtok(NULL, " \t");
 	}
-	free(buffer);
-	return output;
+	free(buffer); //in order to avoid memory leak, the memory used by buffer is designated as free for re-use
+	return output; //returns all the "words"/modifiers of the command
 }
 
+/*
+PURPOSE:
+PARAMETERS:
+*/
 bool checkAwait(list<string> &args)
 {
 	bool toAwait = true;
@@ -125,10 +138,14 @@ bool checkAwait(list<string> &args)
 			args.erase(it);
 			it--; //go back one, avoid nullptr exception
 		}
-	}
+	} 
 	return toAwait;
 }
 
+/*
+PURPOSE:
+PARAMETERS:
+*/
 void checkRedirects(list<string> &command)
 {
 	auto it = command.begin();
@@ -174,6 +191,10 @@ void checkRedirects(list<string> &command)
 	}
 }
 
+/*
+PURPOSE:
+PARAMETERS:
+*/
 pair<pid_t, bool> spinProc(list<string> &args)
 {
 	bool await = checkAwait(args);
@@ -198,6 +219,10 @@ pair<pid_t, bool> spinProc(list<string> &args)
 	return make_pair(proc, await);
 }
 
+/*
+PURPOSE:
+PARAMETERS:
+*/
 void printHistory(vector<string> &history)
 {
 	if (history.empty()) //empty history
@@ -213,6 +238,10 @@ void printHistory(vector<string> &history)
 	}
 }
 
+/*
+PURPOSE:
+PARAMETERS:
+*/
 pair<string, bool> historyRequest(string request, vector<string> &history)
 {
 	if (request == "!!") //return last command
@@ -230,6 +259,10 @@ pair<string, bool> historyRequest(string request, vector<string> &history)
 	return make_pair(history[history.size() - num], true);
 }
 
+/*
+PURPOSE:
+PARAMETERS:
+*/
 void checkRunningProcs(list<pid_t> &runningProcs)
 {
 	if (runningProcs.empty()) //no processes to check for
@@ -238,7 +271,7 @@ void checkRunningProcs(list<pid_t> &runningProcs)
 	}
 	int status = 0;
 	int finishedProc = 0;
-	for (auto it = runningProcs.begin(); it != runningProcs.end(); it++)
+	for (auto it = runningProcs.begin(); it != runningProcs.end(); it++) //iterates for the # of processes running
 	{
 		finishedProc = waitpid(*it, &status, WNOHANG); //don't block, returns 0 if not finished
 		if (finishedProc != 0)
