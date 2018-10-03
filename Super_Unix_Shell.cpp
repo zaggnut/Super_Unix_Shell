@@ -36,9 +36,9 @@ int main()
 	vector<string> history;
 	list<pid_t> runningProcs;
 
-	for (;;)
+	for (;;) //infinite loop (program exits with Ctrl + c while in linux server)
 	{
-		cout << "TheFakeShell-> "; //because it is not a real shell
+		cout << "TheFakeShell-> "; //because it is not a real shell [or is it!?]
 		string input;              //string to hold the next line
 		getline(cin, input);
 		auto args = splitArgs(input); //split into "words" by ' ' or '\t'
