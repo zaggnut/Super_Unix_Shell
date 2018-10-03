@@ -9,10 +9,7 @@ Author Of Modification: Michael Lingo
 //insert amazing code here
 
 #include <unistd.h> //fork, execvp, dup2
-//#include <sys/types.h>
 #include <sys/wait.h> //wait, waitpid
-//#include <sys/stat.h>
-//#include <fcntl.h> //dup2
 #include <cerrno> //perror
 #include <string>
 #include <iostream> //cout, cin
