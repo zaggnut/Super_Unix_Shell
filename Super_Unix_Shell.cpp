@@ -1,5 +1,6 @@
 /*
 Purpose: To create the Super Unix Shell
+Requires at least C++11
 Creation Date: 9/26/2018
 Author(s): Shane Laskowski & Michael Lingo
 Date Modified: 10/02/2018
