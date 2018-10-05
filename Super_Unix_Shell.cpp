@@ -63,12 +63,12 @@ int main()
 			history.push_back(input); //user command saved into history container
 			if (*(args.begin()) == "exit") //exit if first arg is exit
 			{
-				break; //the infinite for loop breaks ==>  basically it means the end of the program 
+				break; //the infinite for loop breaks ==>  basically it means the end of the entire program 
 			}
 			if (*(args.begin()) == "history") //if user types in the history command, then history is printed
 			{
 				printHistory(history); //history of user input printed
-				continue; //
+				continue; //The history command has been ran ==> no need to run the code block below ==> re-rerun the loop for next user's command
 			}
 			auto status = spinProc(args); //runs the command that user typed in, passes the pair of PID and bool result into status
 			if (status.second == false) //if spinProc returned false bool
@@ -122,20 +122,22 @@ list<string> splitArgs(string input)
 }
 
 /*
-PURPOSE:
-PARAMETERS:
+PURPOSE: if the user's command has the & command modifier, then the parent process should NOT wait() until the child process ends
+PARAMETERS: args is the entire user command, it is to be checked if & modifier is added to the command.
 */
-bool checkAwait(list<string> &args)
+bool checkAwait(list<string> &args) //args is passed by reference because modification made to it should reflect in the function caller
 {
 	bool toAwait = true;
-	auto it = args.begin();
+	auto it = args.begin(); //"it" is pointer to args, "it" will be used to traverse args 
 	it++; //start with the second since the first must be the command
+
+	//searches args for a "&"
 	for (; it != args.end(); it++)
 	{
-		if (*it == "&")
+		if (*it == "&") //a & was found ==> the command should run a child process in the background
 		{
 			toAwait = false;
-			args.erase(it);
+			args.erase(it); //args is modified here, the & has been handled ==> it is removed so the program can focus on the rest of the commands
 			it--; //go back one, avoid nullptr exception
 		}
 	} 
@@ -192,13 +194,13 @@ void checkRedirects(list<string> &command)
 }
 
 /*
-PURPOSE: Handles the User Input
-PARAMETERS: args is a list containing all the "words" of the user command
+PURPOSE: Handles the user command that is Not History or Exit
+PARAMETERS: args is a list containing all the "words" of the user's command
 */
 pair<pid_t, bool> spinProc(list<string> &args)
 {
-	bool await = checkAwait(args);
-	auto proc = fork();
+	bool await = checkAwait(args); //checks if & modifier is added to the command.
+	auto proc = fork(); 
 	if (proc == -1) //failure
 	{
 		exit(EXIT_FAILURE);
@@ -210,9 +212,9 @@ pair<pid_t, bool> spinProc(list<string> &args)
 	}
 	else //parent process
 	{
-		if (await)
+		if (await) //if the parent process should wait, then it will wait, else it will continue to run
 		{
-			int result;
+			int result; //********************************** whutttt????
 			wait(&result);
 		}
 	}
