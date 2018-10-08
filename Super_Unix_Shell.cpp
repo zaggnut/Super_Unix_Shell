@@ -216,8 +216,8 @@ pair<pid_t, bool> spinProc(list<string> &args)
 	{
 		if (await) //if the parent process should wait, then it will wait, else it will continue to run
 		{
-			int result; //********************************** whutttt????
-			wait(&result);
+			int result; //to hold the return status of the forked process
+			wait(&result); //wait must have a pointer/reference to an int as an argument
 		}
 	}
 	return make_pair(proc, await); //returns 
@@ -234,7 +234,7 @@ void printHistory(vector<string> &history)
 		cout << "The history is empty" << endl;
 		return;
 	}
-	unsigned j = history.size(); //**************can't we just replace with i + 1 within the loop ?
+	unsigned j = history.size(); //Print history position is reverse order, last command is history num 1
 	for (unsigned i = 0; i < history.size(); i++)
 	{
 		cout << j << " " << history[i] << endl;
