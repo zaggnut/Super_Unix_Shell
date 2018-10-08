@@ -26,7 +26,7 @@ bool shellExec(list<string> &command);
 void checkRedirects(list<string> &command);
 list<string> splitArgs(string input);
 bool checkAwait(list<string> &args);
-void printHistory(vector<string> &history);//
+void printHistory(vector<string> &history);
 pair<pid_t, bool> spinProc(list<string> &args);
 pair<string, bool> historyRequest(string request, vector<string> &history);
 void checkRunningProcs(list<pid_t> &runningProcs);
@@ -81,20 +81,20 @@ int main()
 }
 
 /*
-Purpose:
-Parameters:
+Purpose: rewrites the context/image of the process.  runs the program described in the command parameter
+Parameters:command is the user command and any other modifying user arguments.
 */
 bool shellExec(list<string> &command)
 {
-	char **argList = new char *[command.size() + 1];
+	char **argList = new char *[command.size() + 1]; //creates a pointer to a char pointer, an array of c-strings to be terminated by a null terminator
 	int i = 0;
-	for (auto it = command.begin(); it != command.end(); it++)
+	for (auto it = command.begin(); it != command.end(); it++) //traverses the cstrings (just the command + any modifying arguments)
 	{
-		argList[i] = strdup(it->c_str());
+		argList[i] = strdup(it->c_str()); //returns a null termianted c-string createed in heap into the array
 		i++;
 	}
 	argList[i] = NULL; //last arg is null
-	int res = execvp(command.begin()->c_str(), argList);
+	int res = execvp(command.begin()->c_str(), argList); //rewrites the image/context of the current process.  runs the program/file with the argument list provided
 	_exit(res); //error, exit without flushing buffers
 }
 
@@ -145,49 +145,51 @@ bool checkAwait(list<string> &args) //args is passed by reference because modifi
 }
 
 /*
-PURPOSE:
-PARAMETERS:
+PURPOSE: this function checks whether the user's command included redirects ("<" and/or ">").  if either is found
+then the redirects will be handled.
+PARAMETERS:command is the list of the user's command and any modifying arguments.  it will be modified so its passed by ref.
 */
 void checkRedirects(list<string> &command)
 {
-	auto it = command.begin();
+	auto it = command.begin(); //this variable is used to traverse the user's arguments used on the user's command
 	it++; //start with the second since the first must be the command
 	for (; it != command.end(); it++)
 	{
 		if (*it == ">")
 		{
-			auto firstErase = it;
-			it++;
+			auto firstErase = it; //we want to keep a reference to the > so we can handle it later
+			it++; //travsere to the empty space that SHOULD come after ">"
 			//int outFile = open(it->c_str(), O_WRONLY | O_CREAT | O_TRUNC);
-			FILE *outF = fopen(it->c_str(), "w");
-			int outFile = fileno(outF);
+			FILE *outF = fopen(it->c_str(), "w"); //set the file pointer to write mode, writes to the file named by the null terminated string "it" is pointing at
+			int outFile = fileno(outF); //returns the file integer descriptor of outF
 			if (outFile == -1)
 			{
-				perror(strerror(errno));
+				perror(strerror(errno)); //strerror returns an error message in form of a string, perror prints it out to standard error output stream (to console)
 			}
-			it++;
-			command.erase(firstErase, it);
-			dup2(outFile, STDOUT_FILENO);
-			fclose(outF);
+			it++; //traverses past the empty space onto the next character of the list command
+			command.erase(firstErase, it); // ">" has been handled, therefore it will be erased
+			dup2(outFile, STDOUT_FILENO); //redirects stdoutput to the file that is discripted by outfile
+			fclose(outF); //close the file
 			it = command.begin(); //start over, avoids nullptr exception
 			continue;
 		}
 
+		
 		if (*it == "<")
 		{
 			auto firstErase = it;
 			it++;
-			FILE *inF = fopen(it->c_str(), "r");
-			int inFile = fileno(inF);
+			FILE *inF = fopen(it->c_str(), "r"); //opens a file named after the null terminated string, sets mode to read from that file
+			int inFile = fileno(inF);//returns file descriptor of inF
 			//int inFile = open(it->c_str(), O_RDONLY);
 			if (inFile == -1)
 			{
 				perror(strerror(errno));
 			}
 			it++;
-			command.erase(firstErase, it);
-			dup2(inFile, STDIN_FILENO);
-			fclose(inF);
+			command.erase(firstErase, it); //"<" has been handled ==> erase it, less trouble to deal within the rest of the program
+			dup2(inFile, STDIN_FILENO); //std output redirected to the file descripted by inFile
+			fclose(inF); //close file we done
 			it = command.begin(); //start over, avoids nullptr exception
 		}
 	}
@@ -201,14 +203,14 @@ pair<pid_t, bool> spinProc(list<string> &args)
 {
 	bool await = checkAwait(args); //checks if & modifier is added to the command.
 	auto proc = fork(); 
-	if (proc == -1) //failure
+	if (proc == -1) //failure, blame Linus
 	{
 		exit(EXIT_FAILURE);
 	}
 	else if (proc == 0) //child process
 	{
-		checkRedirects(args);
-		shellExec(args);
+		checkRedirects(args); // checks for ">" or "<" and handles them
+		shellExec(args);//calls an exec function to rewrite the image/context of this child process to the apporpriate programe/file
 	}
 	else //parent process
 	{
@@ -218,7 +220,7 @@ pair<pid_t, bool> spinProc(list<string> &args)
 			wait(&result);
 		}
 	}
-	return make_pair(proc, await);
+	return make_pair(proc, await); //returns 
 }
 
 /*
@@ -241,8 +243,8 @@ void printHistory(vector<string> &history)
 }
 
 /*
-PURPOSE:
-PARAMETERS:
+PURPOSE: returns information regarding the history of user commands
+PARAMETERS: a request string is used as an argument for specific info regarding the user history.  the history vector is list of all user commands (excluding exit and history)
 */
 pair<string, bool> historyRequest(string request, vector<string> &history)
 {
@@ -251,7 +253,7 @@ pair<string, bool> historyRequest(string request, vector<string> &history)
 		return make_pair(history[history.size() - 1], true);
 	}
 	long num = 0;
-	num = strtol(request.substr(1).c_str(), NULL, 0);
+	num = strtol(request.substr(1).c_str(), NULL, 0); //num will be used to return an exact user command of the history vector
 	if (num <= 0 || num > history.size())
 	{
 		cout << "that is not a valid position in the history" << endl;
@@ -262,8 +264,8 @@ pair<string, bool> historyRequest(string request, vector<string> &history)
 }
 
 /*
-PURPOSE:
-PARAMETERS:
+PURPOSE: checks the running process list.  if the processes checked are finished running they will be removed from this list
+PARAMETERS: runningProcs is a list of processes that should be running
 */
 void checkRunningProcs(list<pid_t> &runningProcs)
 {
@@ -276,7 +278,7 @@ void checkRunningProcs(list<pid_t> &runningProcs)
 	for (auto it = runningProcs.begin(); it != runningProcs.end(); it++) //iterates for the # of processes running
 	{
 		finishedProc = waitpid(*it, &status, WNOHANG); //don't block, returns 0 if not finished
-		if (finishedProc != 0)
+		if (finishedProc != 0) //if the process is finished, it will print out some info of it and will be removed from the running process List
 		{
 			cout << endl << "Process with pid " << finishedProc
 				<< " exited with code: " << status << endl;
